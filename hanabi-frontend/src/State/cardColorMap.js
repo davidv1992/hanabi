@@ -1,0 +1,1 @@
+export default ["wit", "rood", "groen", "geel", "blauw", "?"];

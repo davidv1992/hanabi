@@ -1,0 +1,26 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/hanabi-frontend/node_modules
+/hanabi-frontend/.pnp
+.pnp.js
+
+# testing
+/hanabi-frontend/coverage
+
+# production
+/hanabi-frontend/build
+
+# misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+#GO
+hanabi

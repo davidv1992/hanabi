@@ -1,0 +1,10 @@
+.EmptyPile {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  align-items: center;
+	width: 4.95vw;
+  height: 7.2vw;
+	border: 2px dashed gray;
+	margin: .2em;
+}

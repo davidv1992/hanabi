@@ -1,0 +1,62 @@
+.Card {
+  position: absolute;
+  left: 16.5vw;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+	width: 4.95vw;
+  height: 7.2vw;
+	border: 2px solid black;
+	margin-top: .2em;
+	margin-bottom: .2em;
+  transition: transform 1s ease;
+}
+
+.Card-Margin {
+	position: relative;
+	left: 0;
+	margin-left: .2em;
+	margin-right: .2em;
+}
+
+.Card-Selected  {
+	border: 4px solid red;
+}
+
+.Tilt {
+  transform: rotate(10deg);
+}
+
+.Select {
+  transform: translate(0, -20%);
+}
+
+.Number-Top-Left {
+  position: absolute;
+  left: 7%;
+  top: 5%;
+}
+
+.Number-Top-Right {
+  position: absolute;
+  right: 7%;
+  top: 5%;
+}
+
+.Number-Bottom-Left {
+  position: absolute;
+  left: 7%;
+  bottom: 5%;
+}
+
+.Number-Bottom-Right {
+  position: absolute;
+  right: 7%;
+  bottom: 5%;
+}
+
+.Color {
+  margin-top: 15%;
+  margin-bottom: 15%;
+}
