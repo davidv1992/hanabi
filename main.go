@@ -7,18 +7,72 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 )
 
-const nplayers = 4
+// GameRoom bla
+type GameRoom struct {
+	sync.Mutex
+	game       *GameState
+	playersIn  int
+	nplayers   int
+	lastActive time.Time
+}
 
-var game *GameState
-var playersIn int
-var playerTokens []string
+// PlayerTokenData bla
+type PlayerTokenData struct {
+	playerIdx int
+	room      string
+}
+
+var rooms = map[string]*GameRoom{}
+var playerTokens = map[string]PlayerTokenData{}
 var globalLock sync.Mutex
+
+func doCleanup() {
+	globalLock.Lock()
+	defer globalLock.Unlock()
+	removed := map[string]struct{}{}
+	for k, v := range rooms {
+		if len(v.game.listeners) == 0 && time.Since(v.lastActive) > 1*time.Hour {
+			removed[k] = struct{}{}
+			delete(rooms, k)
+		}
+	}
+	for k, v := range playerTokens {
+		if _, ok := removed[v.room]; ok {
+			delete(playerTokens, k)
+		}
+	}
+}
+
+func handleJoinForm(w http.ResponseWriter, r *http.Request) {
+	room := r.URL.RawQuery
+	if room == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.Write([]byte(`
+	<html>
+	<head>
+	<title>Join Hanabi</title>
+	</head>
+	<body>
+	<form method="POST" action="/hanabi/dojoin">
+	<label for="name">Name:</label><input type="text" name="name" id="name"/><br/>
+	<input type="submit" value="Join"/>
+	<input type="hidden" name="room" id="room" value="` + room + `"/>
+	</form>
+	<p> To invite others, use this link: <a href="https://walkintrack.nl/hanabi/join.html?` + room + `">https://walkintrack.nl/hanabi/join.html?` + room + `</a> </p>
+	</body>
+	</html>
+	`))
+}
 
 func handleJoin(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
@@ -29,16 +83,26 @@ func handleJoin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	name := r.FormValue("name")
+	room := r.FormValue("room")
 
-	if name == "" {
+	if name == "" || room == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	globalLock.Lock()
-	defer globalLock.Unlock()
+	rm, ok := rooms[room]
+	globalLock.Unlock()
 
-	if playersIn >= nplayers {
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	rm.Lock()
+	defer rm.Unlock()
+
+	if rm.playersIn >= rm.nplayers {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -52,10 +116,12 @@ func handleJoin(w http.ResponseWriter, r *http.Request) {
 	}
 	token := base64.StdEncoding.EncodeToString(tokenData)
 
-	game.SetName(playersIn, name)
-	playersIn = playersIn + 1
+	rm.game.SetName(rm.playersIn, name)
+	rm.playersIn = rm.playersIn + 1
 
-	playerTokens = append(playerTokens, token)
+	globalLock.Lock()
+	playerTokens[token] = PlayerTokenData{playerIdx: rm.playersIn - 1, room: room}
+	globalLock.Unlock()
 
 	http.SetCookie(w, &http.Cookie{
 		Name:   "token",
@@ -63,7 +129,51 @@ func handleJoin(w http.ResponseWriter, r *http.Request) {
 		MaxAge: 24 * 3600,
 		Path:   "/",
 	})
-	w.Header().Add("Location", "/play.html")
+	w.Header().Add("Location", "/hanabi/play.html")
+	w.WriteHeader(http.StatusSeeOther)
+}
+
+func handleCreate(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		fmt.Println(err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	players := r.FormValue("players")
+	nplayers, err := strconv.Atoi(players)
+	if err != nil {
+		fmt.Println(err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if nplayers < 2 || nplayers > 5 {
+		fmt.Println(err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	tokenData := make([]byte, 16)
+	_, err = crand.Read(tokenData)
+	if err != nil {
+		fmt.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	token := base64.StdEncoding.EncodeToString(tokenData)
+
+	globalLock.Lock()
+	rooms[token] = &GameRoom{
+		game:       NewGame(nplayers),
+		nplayers:   nplayers,
+		playersIn:  0,
+		lastActive: time.Now(),
+	}
+	globalLock.Unlock()
+
+	w.Header().Add("Location", "/hanabi/join.html?"+token)
 	w.WriteHeader(http.StatusSeeOther)
 }
 
@@ -89,16 +199,21 @@ func handleConnect(w http.ResponseWriter, r *http.Request) {
 
 	token := string(tokenb)
 
-	playerIdx := -1
-	for i, ptoken := range playerTokens {
-		if ptoken == token {
-			playerIdx = i
-		}
-	}
-	if playerIdx == -1 {
+	globalLock.Lock()
+	playerData, ok := playerTokens[token]
+	globalLock.Unlock()
+
+	if !ok {
 		conn.Close()
 		return
 	}
+
+	globalLock.Lock()
+	rm := rooms[playerData.room]
+	globalLock.Unlock()
+
+	playerIdx := playerData.playerIdx
+	game := rm.game
 
 	eventStream := make(chan interface{}, 100)
 	end := make(chan struct{})
@@ -135,6 +250,7 @@ func handleConnect(w http.ResponseWriter, r *http.Request) {
 					for ok := true; ok; _, ok = <-eventStream {
 					}
 				}()
+				rm.lastActive = time.Now()
 				game.RemoveListener(listener)
 				close(eventStream)
 				return
@@ -201,11 +317,18 @@ func handleConnect(w http.ResponseWriter, r *http.Request) {
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	game = NewGame(nplayers)
+	go func() {
+		for {
+			doCleanup()
+			time.Sleep(5 * time.Minute)
+		}
+	}()
 
-	http.Handle("/", http.FileServer(http.Dir("./hanabi-frontend/build")))
-	http.HandleFunc("/join", handleJoin)
+	http.Handle("/", http.FileServer(http.Dir("./frontend")))
+	http.HandleFunc("/join.html", handleJoinForm)
+	http.HandleFunc("/create", handleCreate)
+	http.HandleFunc("/dojoin", handleJoin)
 	http.HandleFunc("/connect", handleConnect)
 
-	panic(http.ListenAndServe(":80", nil))
+	panic(http.ListenAndServe(":8081", nil))
 }

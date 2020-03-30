@@ -2,6 +2,7 @@
   "name": "hanabi-frontend",
   "version": "0.1.0",
   "private": true,
+  "homepage": "/hanabi/",
   "dependencies": {
     "@babel/core": "7.8.4",
     "@svgr/webpack": "4.3.3",

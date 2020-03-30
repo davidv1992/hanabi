@@ -12,7 +12,7 @@ if (!cookieString.startsWith("token=")) {
     document.location.replace("/");
 } else {
     var store = createStore(state);
-    var conn = new WebSocket("ws:walkintrack.nl/connect");
+    var conn = new WebSocket("wss:walkintrack.nl/hanabi/connect");
     conn.onopen = ()=>{conn.send(cookieString.substr(6));};
     conn.onmessage = (message)=>{
         var action = JSON.parse(message.data);

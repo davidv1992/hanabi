@@ -1,15 +1,15 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/hanabi-frontend/node_modules
-/hanabi-frontend/.pnp
+/frontend/node_modules
+/frontend/.pnp
 .pnp.js
 
 # testing
-/hanabi-frontend/coverage
+/frontend/coverage
 
 # production
-/hanabi-frontend/build
+/frontend/build
 
 # misc
 .DS_Store

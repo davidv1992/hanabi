@@ -3,9 +3,9 @@
   left: 16.5vw;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-	width: 4.95vw;
+	width: 4.2vw;
   height: 7.2vw;
 	border: 2px solid black;
 	margin-top: .2em;
@@ -32,31 +32,8 @@
   transform: translate(0, -20%);
 }
 
-.Number-Top-Left {
-  position: absolute;
-  left: 7%;
-  top: 5%;
-}
-
-.Number-Top-Right {
-  position: absolute;
-  right: 7%;
-  top: 5%;
-}
-
-.Number-Bottom-Left {
-  position: absolute;
-  left: 7%;
-  bottom: 5%;
-}
-
-.Number-Bottom-Right {
-  position: absolute;
-  right: 7%;
-  bottom: 5%;
-}
-
 .Color {
+  font-size: large;
   margin-top: 15%;
   margin-bottom: 15%;
 }
